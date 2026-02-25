@@ -9,6 +9,7 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Parameters;
 
@@ -40,13 +41,9 @@ public class BaseTest {
         // wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("some-dashboard-selector")));
     }
 
-    @AfterSuite(alwaysRun = true)
+    @AfterTest
     public void tearDown() {
-        if (driver != null) {
-            driver.quit();
-            driver = null;
-            wait = null;
-        }
+        driver.quit();
     }
 }
  

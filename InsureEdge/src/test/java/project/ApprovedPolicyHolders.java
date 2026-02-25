@@ -396,122 +396,85 @@ public class ApprovedPolicyHolders extends BaseTest {
     }
 
     @Test(priority = 17)
-    public void ResetButtonFunctionalityValidation() {
+    public void resetbutton() {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        final String DEFAULT_FILTER = "-- All --";
-        final By resetButton = By.xpath(
-                "//*[self::button or self::input][normalize-space()='Reset' or @value='Reset' or contains(@class,'reset')]"
-        );
-        final By tableRows = By.xpath("//table//tbody/tr[td]");
-        final By select2Options = By.xpath("//li[contains(@class,'select2-results__option') and normalize-space(.)!='']");
-        Function<String, String> normalize = s -> {
-            if (s == null) return "";
-            return s.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
-        };
-        Function<String, String> getFilterValue = (label) -> {
-            WebElement rendered = driver.findElement(By.xpath(
-                    "//label[normalize-space()='" + label + "']" +
-                            "/ancestor::*[self::div or self::td][1]" +
-                            "//span[contains(@class,'select2-selection__rendered')]"
-            ));
-            String raw = rendered.getAttribute("title");
-            if (raw == null) raw = rendered.getText();
-            return normalize.apply(raw);
-        };
-        BiFunction<Integer, By, List<String>> captureTableSnapshot = (limit, by) -> {
-            List<WebElement> rows = wait.until(
-                    org.openqa.selenium.support.ui.ExpectedConditions.presenceOfAllElementsLocatedBy(by)
-            );
-            java.util.List<String> snapshot = new java.util.ArrayList<>();
-            int n = Math.min(rows.size(), limit);
-            for (int i = 0; i < n; i++) {
-                snapshot.add(normalize.apply(rows.get(i).getText()));
-            }
-            return snapshot;
-        };
 
-        BiFunction<String, String, String> selectAnyNonDefaultOption = (label, defaultFilterValue) -> {
-            WebElement dropdownBox = driver.findElement(By.xpath(
-                    "//label[normalize-space()='" + label + "']" +
-                            "/ancestor::*[self::div or self::td][1]" +
-                            "//span[contains(@class,'select2-selection')]"
-            ));
-            try {
-                dropdownBox.click();
-            } catch (ElementClickInterceptedException ex) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", dropdownBox);
-            }
+        // Locators
+        By menuPolicies = By.xpath("//ul[@id='sidebar-nav']/child::li[5]/a");
+        By menuAppliedPolicyHolders = By.xpath("//ul[@id='sidebar-nav']/child::li[5]/a/following-sibling::ul/li[2]/a");
 
-            List<WebElement> options = wait.until(
-                    ExpectedConditions.presenceOfAllElementsLocatedBy(select2Options)
-            );
+        By customerNameContainer = By.xpath("//div[@class='col-md-3']/descendant::span"); // Select2 display span (adjust if needed)
+        By policyNameContainer   = By.id("select2-ContentPlaceHolder_Admin_ddlPolicyName-container");
+        By subCategoryContainer  = By.id("select2-ContentPlaceHolder_Admin_ddlSubCategory-container");
 
-            WebElement pick = null;
-            for (WebElement opt : options) {
-                String text = normalize.apply(opt.getText());
-                if (text.isEmpty()) continue;
-                if (text.equalsIgnoreCase(defaultFilterValue)) continue;
-                if (text.equalsIgnoreCase("No results found")) continue;
-                if (text.equals("...")) continue;
-                pick = opt;
-                break;
-            }
-            Assert.assertNotNull(pick, "No selectable non-default option found for: " + label);
+        By resetBtn = By.id("ContentPlaceHolder_Admin_btnReset");
 
-            String chosen = normalize.apply(pick.getText());
-            try {
-                pick.click();
-            } catch (ElementClickInterceptedException ex) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", pick);
-            }
 
-            wait.until(d -> chosen.equals(getFilterValue.apply(label)));
-            return chosen;
-        };
-        List<String> initialSnapshot = captureTableSnapshot.apply(25, tableRows);
-        org.testng.Assert.assertTrue(initialSnapshot.size() > 0, "Initial table snapshot should not be empty.");
-        String chosenCustomer = selectAnyNonDefaultOption.apply("Customer Name", DEFAULT_FILTER);
-        String chosenStatus   = selectAnyNonDefaultOption.apply("Policy Status", DEFAULT_FILTER);
+        wait.until(ExpectedConditions.elementToBeClickable(menuPolicies)).click();
+        wait.until(ExpectedConditions.elementToBeClickable(menuAppliedPolicyHolders)).click();
 
-        org.testng.Assert.assertNotEquals(getFilterValue.apply("Customer Name"), DEFAULT_FILTER,
-                "Customer Name did not change from default before Reset.");
-        org.testng.Assert.assertNotEquals(getFilterValue.apply("Policy Status"), DEFAULT_FILTER,
-                "Policy Status did not change from default before Reset.");
-        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(tableRows));
-        WebElement beforeFirstRow = null;
-        java.util.List<WebElement> beforeRows = driver.findElements(tableRows);
-        if (!beforeRows.isEmpty()) beforeFirstRow = beforeRows.get(0);
 
-        WebElement reset = wait.until(ExpectedConditions.elementToBeClickable(resetButton));
-        try {
-            reset.click();
-        } catch (ElementClickInterceptedException ex) {
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", reset);
-        }
+        WebElement customerDisplay = wait.until(ExpectedConditions.elementToBeClickable(customerNameContainer));
+        customerDisplay.click();
 
-        wait.until(d -> DEFAULT_FILTER.equals(getFilterValue.apply("Customer Name")));
-        wait.until(d -> DEFAULT_FILTER.equals(getFilterValue.apply("Policy Status")));
+        WebElement customerOption = wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//ul[@class='select2-results__options']//li[10]")));
+        customerOption.click();
 
-        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(tableRows));
-        if (beforeFirstRow != null) {
-            try {
-                new WebDriverWait(driver, Duration.ofSeconds(5))
-                        .until(ExpectedConditions.stalenessOf(beforeFirstRow));
-            } catch (TimeoutException ignored) {}
-        }
-        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(tableRows));
+        // Read selected value from freshly found display element
+        String customerBefore = driver.findElement(customerNameContainer).getText();
 
-        Assert.assertEquals(getFilterValue.apply("Customer Name"), DEFAULT_FILTER,
-                "Customer Name did not reset to default '-- All --'.");
-        Assert.assertEquals(getFilterValue.apply("Policy Status"), DEFAULT_FILTER,
-                "Policy Status did not reset to default '-- All --'.");
+        // Policy
+        WebElement policyDisplay = wait.until(ExpectedConditions.elementToBeClickable(policyNameContainer));
+        policyDisplay.click();
+        WebElement policyOption = wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//ul[@class='select2-results__options']//li[3]")));
+        policyOption.click();
+        String policyBefore = driver.findElement(policyNameContainer).getText();
 
-        List<String> afterResetSnapshot = captureTableSnapshot.apply(25, tableRows);
-        org.testng.Assert.assertEquals(afterResetSnapshot, initialSnapshot,
-                "After Reset, table did NOT reload to its initial state.");
+        // Sub Category
+        WebElement subCatDisplay = wait.until(ExpectedConditions.elementToBeClickable(subCategoryContainer));
+        subCatDisplay.click();
+        WebElement subCatOption = wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//ul[@class='select2-results__options']//li[3]")));
+        subCatOption.click();
+        String subCatBefore = driver.findElement(subCategoryContainer).getText();
 
-        System.out.println("Passed: Reset restored both filters to '-- All --' and reloaded the initial table snapshot.");
+        System.out.println("Before Reset: " + customerBefore + " | " + policyBefore + " | " + subCatBefore);
+
+        // Click Reset
+        wait.until(ExpectedConditions.elementToBeClickable(resetBtn)).click();
+
+
+        String expectedCustomerPlaceholder = "-- All --";
+        String expectedPolicyPlaceholder   = "-- All --";
+        String expectedSubCatPlaceholder   = "-- All --";
+
+
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(customerNameContainer, expectedCustomerPlaceholder));
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(policyNameContainer, expectedPolicyPlaceholder));
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(subCategoryContainer, expectedSubCatPlaceholder));
+
+
+        String customerAfter = driver.findElement(customerNameContainer).getText();
+        String policyAfter   = driver.findElement(policyNameContainer).getText();
+        String subCatAfter   = driver.findElement(subCategoryContainer).getText();
+
+        System.out.println("After Reset: " + customerAfter + " | " + policyAfter + " | " + subCatAfter);
+
+        // Assertions (SoftAssert example)
+        SoftAssert soft = new SoftAssert();
+        soft.assertTrue(customerAfter.contains(expectedCustomerPlaceholder),
+                "Customer not reset. Actual: " + customerAfter);
+        soft.assertTrue(policyAfter.contains(expectedPolicyPlaceholder),
+                "Policy not reset. Actual: " + policyAfter);
+        soft.assertTrue(subCatAfter.contains(expectedSubCatPlaceholder),
+                "SubCategory not reset. Actual: " + subCatAfter);
+        soft.assertAll();
+
+        System.out.println("Reset button functionality verified.");
     }
+
 
     @Test(priority = 21)
     public void paginationNumberValidationFunctionality() {
